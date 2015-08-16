@@ -1,0 +1,107 @@
+---
+title: "Assignment1"
+output: html_document
+---
+## load the data
+```{r, echo=TRUE}
+act=read.csv("/Users/yant/tingfen/coursera/datascience/5_reproducible/assignment1/activity.csv")
+dim(act)
+head(act, n=20)
+```
+## What is mean total number of steps taken per day
+### Calculate the total number of steps taken per day
+```{r, echo=TRUE}
+library(dplyr)
+group1=group_by(act,date)
+tab=summarise(group1,sum(steps,na.rm=T))
+colnames(tab)=c("data", "steps")
+tab[1:2,]
+tb=summarise(group1,mean(steps,na.rm=T))
+tb[1:3,]
+##histgram
+hist(tab$steps, xlab="steps", main="Histogram of total steps per day")
+mn=mean(as.numeric(as.character(tab$steps)),na.rm=T)
+medn=median(as.numeric(as.character(tab$steps)), na.rm=T)
+```
+The mean and median of the total number of steps taken per day are `r mn` and `r medn`.
+
+##What is the average daily activity pattern?
+
+```{r, echo=TRUE}
+group2=group_by(act,interval)
+tab2=summarise(group2,mean(steps,na.rm=T))
+head(tab2)
+colnames(tab2)=c("interval","average_steps")
+plot(tab2, type="l")
+tab3=tab2[order(tab2$average_steps, decreasing = T),]
+head(tab3)
+
+```
+The 830-835 5-minutes interval has the maxima averge steps, 206.1698. 
+##Imputing missing values
+```{r, echo=TRUE}
+##check no NA
+ok=complete.cases(act)
+##get the number of NA
+num=sum(!ok)
+
+```
+The total number of missing values in the dataset is `r num`.
+###Create a new dataset that is equal to the original dataset but with the missing data filled in.
+```{r, echo=TRUE}
+day=unique(as.character(act$date))
+tbl=data.frame()
+for (i in 1:length(day)) {
+act_d=subset(act,date %in% day[i] )
+act_d[1:3,]
+##using mean of the day to fill in the missing data
+mn=mean(as.numeric(act_d$steps), na.rm=T)
+mns=ifelse(is.na(mn),0, mn)
+act_d$newSteps=ifelse(is.na(act_d$steps),mns, act_d$steps)
+act_d[1:2,]
+tbl=rbind(tbl,act_d)
+
+}
+tbl=tbl[,c(4,2,3)]
+tail(tbl)
+
+```
+###Make a histogram of the total number of steps taken each day
+```{r, echo=TRUE}
+group3=group_by(tbl,date)
+tab4=summarise(group3,sum(newSteps,na.rm=T))
+tab4[1:3,]
+colnames(tab4)=c("data", "newSteps")
+hist(tab4$newSteps, xlab="total number of steps", main="Histgram of total number of steps taken on each day" )
+mn1=mean(tab4$newSteps)
+medn=median(tab4$newSteps)
+```
+The mean and median total number of steps taken per day after filling the missing data "r mn1" and "r medn".
+
+##Activity patterns between weekdays and weekends
+```{r, echo=TRUE}
+tbl$date=as.Date(tbl$date)
+#create a vector of weekdays
+wkdays=c("Monday","Tuesday", "Wednesday", "Thursday", "Friday")
+tbl$wDay=factor((weekdays(tbl$date) %in% wkdays), levels=c(FALSE, TRUE), labels = c("weekend", "weekday"))
+
+#subset data by weekday
+wkd=subset(tbl, wDay %in% "weekday")
+group_wkd=group_by(wkd, interval)
+tab_wkd=summarize(group_wkd, mean(newSteps))
+colnames(tab_wkd)=c("interval", "newSteps")
+tab_wkd$Weekday=rep("weekday",288)
+head(tab_wkd)
+#subset data by weekend
+wkend=subset(tbl, wDay %in% "weekend")
+group_wkend=group_by(wkend,interval)
+tab_wkend=summarize(group_wkend,mean(newSteps))
+colnames(tab_wkend)=c("interval","newSteps")
+tab_wkend$Weekday=rep("weekend", 288)
+head(tab_wkend)
+mrg=rbind(tab_wkd, tab_wkend)
+head(mrg)
+##make a plot
+library(lattice)
+xyplot(newSteps ~ interval | Weekday, data=mrg, layout=c(1,2),type="l")
+```
